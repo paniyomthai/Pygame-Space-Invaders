@@ -1,22 +1,18 @@
 import pygame
-# Allowing interaction with the native Operating System (OS) Python is running on. Part of standard library
 import os
-# Allowing Python to work with time (ex. getting current time, pausing program, etc.)
 import time
-# RNG
 import random
-# Initializing the ability to import fonts; but must still display onto screen
+
+# Initialize ability to import fonts for on-screen display
 pygame.font.init()
 
-# Setting up display area - numbers will specify the pixels taken up on screen
-# 2k screen = 2048 x 1080 pixels
+# Setting up display area by indicating number of pixels (x, y)
+# Ex. QHD (2k resolution) screen = 2048 x 1080 pixels
 WIDTH, HEIGHT = 1000, 900
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("DIY Space Invaders")
 
-# Load image assets
-# Constant variables are capitalized
-# Path joining starts with the working environment folder
+# Loading image assets from "assets" folder
 RED_SHIP = pygame.image.load(os.path.join("Space Invader Project", "assets", "ship_red.png"))
 BLUE_SHIP = pygame.image.load(os.path.join("Space Invader Project", "assets", "ship_blue.png"))
 GREEN_SHIP = pygame.image.load(os.path.join("Space Invader Project", "assets", "ship_green.png"))
@@ -24,11 +20,10 @@ PLAYER_SHIP = pygame.image.load(os.path.join("Space Invader Project", "assets", 
 RED_LASER = pygame.image.load(os.path.join("Space Invader Project", "assets", "laser_red.png"))
 PLAYER_LASER = pygame.image.load(os.path.join("Space Invader Project", "assets", "laser_player.png"))
 
-# Scale the background image to full-screen by equating its size to the window size
+# Scaling static background image to full-screen (image size = window size)
 BG = pygame.transform.scale(pygame.image.load(os.path.join("Space Invader Project", "assets", "background_static.png")), (WIDTH, HEIGHT))
 
-
-# Superclass for lasers
+# Superclass for laser projectiles
 class Laser:
     def __init__(self, x, y, img):
         self.x = x
@@ -36,62 +31,67 @@ class Laser:
         self.img = img
         self.mask = pygame.mask.from_surface(self.img)
 
+    # Window attribute allows the object itself to be used as the drawing parameter
     def draw(self, window):
         window.blit(self.img, (self.x, self.y))
-        # window attribute allows the object itself to be used as the drawing parameter
 
+    # +vel moves laser down (increase), -vel moves laser up (decrease)
     def move(self, vel):
-        self.y += vel  # Add vel to move laser down (increase), subtract vel to move laser up (decrease)
+        self.y += vel  
 
-    def off_screen(self, height):  # Detects whether laser is off the screen
+    # Detecting offscreen laser projectile (so that particular instance can be removed) 
+    def off_screen(self, height):  
         return not(height >= self.y >= 0)
 
-    def collision(self, obj):  # Detects whether laser collides with object
+    # Detecting laser collision with enemy ships
+    def collision(self, obj):  
         return collide(self, obj)
 
-
-# Creating superclass for spaceships (in general)
-    # This base class will only be inherited, meaning attributes and methods will be passed on
-    # Any ship created will be an instance object of this class
+# Superclass for spaceships (general; for inheritance)
 class Ship:
-    COOLDOWN = 50  # FPS = 100, so 50 frames means 0.5 second of cooldown
+    COOLDOWN = 50  # If set FPS = 100, 50 frames = 0.5 second of cooldown
 
-    def __init__(self, x, y, health = 100):  # method (function stored in instance/class)
-        self.x = x  # attribute (var stored in instance/class)
+    def __init__(self, x, y, health = 100): 
+        self.x = x  
         self.y = y
         self.health = health
-# Leave img file path blank since this is the general class for inheritance, specify in subclass (player/enemy)
+        # General class for inheritance, leave img file path blank (specify in subclass for player/enemy)
         self.ship_img = None
         self.laser_img = None
         self.lasers = []
-        self.cooldown_counter = 0  # Setting cooldown for laser
+        # Setting cooldown for laser
+        self.cooldown_counter = 0  
 
     def draw(self, window):
         window.blit(self.ship_img, (self.x, self.y))
         for laser in self.lasers:
             laser.draw(window)
 
-# Moving enemy lasers
+# Moving enemy laser projectiles
     def move_lasers(self, vel, obj):  # obj attribute represents player; checks for collision with player
         self.cooldown()
         for laser in self.lasers:
             laser.move(vel)
+            # Removing laser offscreen
             if laser.off_screen(HEIGHT):
                 self.lasers.remove(laser)
+            # Reducing player health from collision with enemy projectile, then removing laser after first contact
             elif laser.collision(obj):
-                obj.health -= 25  # Player health lost from damage
-                self.lasers.remove(laser)  # Remove laser after first contact to prevent DoT
+                obj.health -= 25  
+                self.lasers.remove(laser)
 
     def cooldown(self):
-        if self.cooldown_counter >= self.COOLDOWN:  # Once counter reaches cooldown threshold, reset to 0 (can shoot)
+        # Once counter reaches cooldown threshold, reset to 0 (can shoot again)
+        if self.cooldown_counter >= self.COOLDOWN:  
             self.cooldown_counter = 0
-        elif self.cooldown_counter > 0:  # If counter hasn't reached threshold, increment by 1 per every window refresh
+        # If counter hasn't reached threshold, increment by 1 per every window refresh
+        elif self.cooldown_counter > 0:  
             self.cooldown_counter += 1
 
     def shoot(self):
-        if self.cooldown_counter == 0:  # Only create new laser object if cooldown at 0
-            laser = Laser(self.x, self.y, self.laser_img)  # Create laser at player location
-            self.lasers.append(laser)  # When new laser is shot, laser object is added to the lasers list
+        if self.cooldown_counter == 0:  # Creating new laser object when cooldown = 0
+            laser = Laser(self.x, self.y, self.laser_img)  # Creating laser at player location
+            self.lasers.append(laser)  # When new laser projectile is shot, laser object is added to the lasers list
             self.cooldown_counter = 1  # Adjust to modify firing rate
 
     def get_width(self):
@@ -101,21 +101,18 @@ class Ship:
         return self.ship_img.get_height()
 
 
-# Creating subclass for player ship (specifically)
-# Player class inherits class attributes and methods from Ship class within parentheses
+# Creating subclass for player ship
+# Player subclass inherits class attributes and methods from Ship class within parentheses
 class Player(Ship):
     def __init__(self, x, y, health=100):
         super().__init__(x, y, health)
-        # Using super() to call superclass will auto-link subclass to superclass, so self attribute isn't needed
-        # If substitute Ship instead of super(), must include self attribute as well
         self.ship_img = PLAYER_SHIP
         self.laser_img = PLAYER_LASER
-        # Creating mask around ship surface for a perfect hit-box (not just a square hit-box around the ship)
+        # Creating mask around ship surface for a wrapped hit-box (and not just a square box around the ship)
         self.mask = pygame.mask.from_surface(self.ship_img)
         self.max_health = health  # Creating max health for point of % deduction from damage
 
     # Moving player lasers
-    # Can use same name since being in another class overrides the parent class method
     def move_lasers(self, vel, objs):  # objs represents enemies; checks for laser collision with enemies
         self.cooldown()
         for laser in self.lasers:
@@ -125,12 +122,12 @@ class Player(Ship):
             else:
                 for obj in objs:
                     if laser.collision(obj):
-                        objs.remove(obj)  # enemy object removed after collision = 1-hit kill for enemies
+                        objs.remove(obj)  # enemy object removed after collision = 1-hit kill
                         if laser in self.lasers:
                             self.lasers.remove(laser)
 
     def draw(self, window):
-        super().draw(window)  # super() returns temporary object of superclass, allows use of superclass methods
+        super().draw(window) 
         self.health_bar(window)
 
     # Drawing player health bar
@@ -148,7 +145,7 @@ class Enemy(Ship):
     ASSET_COLOR = {"red": (RED_SHIP, RED_LASER),
                    "green": (GREEN_SHIP, RED_LASER),
                    "blue": (BLUE_SHIP, RED_LASER)}
-    # Create dictionary for asset color mapping to reduce need for manual inputs, producing cleaner code
+    # Create dictionary for asset color mapping to bypass need for manual input
 
     def __init__(self, x, y, color, health=100):
         super().__init__(x, y, health)
@@ -167,7 +164,6 @@ class Enemy(Ship):
             self.lasers.append(laser)
             self.cooldown_counter = 1.5
 
-
 # Use masks to detect collision of pixels between two objects. Overlapping of pixels = collision
     # Since mask detection also occurs at top left corner, use offset of coordinates to detect pixel overlap
 def collide(obj1, obj2):
@@ -178,7 +174,7 @@ def collide(obj1, obj2):
     # Otherwise, will return (x, y) tuple for point of intersection
 
 
-# Set up main loop to handle events (collisions, calling things onto screen, quitting game, etc.)
+# Main loop for handling events (collisions, calling things onto screen, quitting game, etc.)
 def main():
     run = True
     fps = 100
@@ -206,7 +202,6 @@ def main():
     clock = pygame.time.Clock()
 
     # Rendering/drawing the visuals (.blit()  places an image onto the application screen)
-    # Writing separate function like this helps to find the source of error if the visuals go wrong
     # PyGame coordinates have a reversed y-axis, starts 0 and increases downwards
     def redraw_window():
         # Drawing background onto window
@@ -225,7 +220,6 @@ def main():
         for ea_enemy in enemies:
             ea_enemy.draw(WIN)
         # enemies has .draw method as part of inheritance that Enemy receives from Ship
-        # Instances of Enemy are added into enemies, hence why inheritance can be used
 
         player.draw(WIN)
 
@@ -292,13 +286,13 @@ def main():
             player.x -= vel_player
         if keys[pygame.K_RIGHT] and player.x + player.get_height() + vel_player < WIDTH:
             player.x += vel_player
-        #  Since asset model detection happens at its top left corner, the right and bottom frames will clip through the
-        # game window. Set up 'and' condition that accounts for those edges by adding number of pixels of entire
-        # length/width to detect the opposite edge of that axis (for moving to right and bottom borders of screen)
+        """ Since asset model detection happens at its top left corner, the right and bottom frames will clip through the game window. 
+        Set up 'and' condition that accounts for those edges by adding number of pixels of entire length/width to detect the opposite 
+        edge of that axis (for moving to right and bottom borders of screen)"""
         if keys[pygame.K_s]:
             player.shoot()
 
-        for enemy in enemies[:]:  # Use [:] to work with copy for looping through. Prevents mod of original list
+        for enemy in enemies[:]:  
             enemy.move(vel_enemy)
             enemy.move_lasers(vel_laser_enemy, player)
 
@@ -315,8 +309,6 @@ def main():
             elif enemy.y + enemy.get_height() > HEIGHT:
                 lives -= 1
                 enemies.remove(enemy)  # Remove objects from "enemies" list after they pass the bottom frame of window
-            # Use elif because no point checking if enemy has already collided with player
-            # elif reduces processing time
 
         player.move_lasers(-vel_laser_player, enemies)  # Player laser moving up, so velocity must be negative
 
@@ -343,6 +335,5 @@ def menu():
                 run = False
             if event.type == pygame.KEYDOWN:
                 main()
-
 
 menu()
